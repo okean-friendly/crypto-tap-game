@@ -3,162 +3,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Clicker Game</title>
-    <!-- Официальный скрипт Telegram Web App -->
+    <title>Crypto Tap Game</title>
+    <!-- Подключаем Telegram Web App CSS -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Библиотека Supabase для работы с базой данных -->
+    <!-- Подключаем Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #0f172a);
+            --text-color: var(--tg-theme-text-color, #f8fafc);
+            --hint-color: var(--tg-theme-hint-color, #94a3b8);
+            --button-color: var(--tg-theme-button-color, #3b82f6);
+            --button-text-color: var(--tg-theme-button-text-color, #ffffff);
+            --card-bg: rgba(30, 41, 59, 0.7);
+        }
         body {
-            background-color: #0f172a;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
         .container {
-            max-width: 400px;
+            max-width: 480px;
             margin: 0 auto;
-        }
-        .balance-card {
-            background: #1e293b;
             padding: 20px;
-            border-radius: 16px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            flex: 1;
+            box-sizing: border-box;
+            width: 100%;
+            padding-bottom: 80px;
         }
-        .coin-count {
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin: 0 0 5px 0;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .balance-value {
             font-size: 36px;
             font-weight: bold;
-            color: #fbbf24;
+            color: #38bdf8;
             margin: 10px 0;
         }
         .tap-btn {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
             color: white;
             border: none;
-            width: 180px;
-            height: 180px;
+            width: 150px;
+            height: 150px;
             border-radius: 50%;
             font-size: 24px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.5);
-            transition: transform 0.1s ease;
-            margin: 30px 0;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .tap-btn:active {
-            transform: scale(0.92);
+            transform: scale(0.93);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
         }
-        .nav-tabs {
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
             display: flex;
             justify-content: space-around;
-            background: #1e293b;
-            padding: 10px;
-            border-radius: 12px;
+            padding: 12px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
         }
-        .tab {
+        .nav-item {
             background: none;
             border: none;
-            color: #94a3b8;
-            font-size: 16px;
+            color: var(--hint-color);
+            font-size: 14px;
             cursor: pointer;
-            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
         }
-        .tab.active {
-            color: #6366f1;
+        .nav-item.active {
+            color: #38bdf8;
             font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .stat-row:last-child {
+            border-bottom: none;
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>⚡ Crypto Clicker</h1>
-        
-        <div class="balance-card">
-            <div>Ваш баланс</div>
-            <div class="coin-count" id="balance">0</div>
-            <div style="font-size: 14px; color: #94a3b8;">Кликов: <span id="clicks">0</span></div>
+        <!-- Главная вкладка (Кликер) -->
+        <div id="tab-game" class="tab-content active">
+            <div class="header">
+                <h1>⚡ Crypto Tap</h1>
+                <p style="color: var(--hint-color);">Тапай и зарабатывай монеты</p>
+            </div>
+            
+            <div class="card">
+                <div style="color: var(--hint-color);">Твой баланс</div>
+                <div class="balance-value" id="balance">0</div>
+                <div>Монет</div>
+            </div>
+
+            <button class="tap-btn" id="tapButton">TAP</button>
         </div>
 
-        <!-- Кнопка клика -->
-        <button class="tap-btn" id="tapButton">КЛИК!</button>
+        <!-- Вкладка кабинета/профиля -->
+        <div id="tab-profile" class="tab-content">
+            <div class="header">
+                <h1>👤 Личный кабинет</h1>
+            </div>
+            <div class="card">
+                <div class="stat-row">
+                    <span style="color: var(--hint-color);">Имя:</span>
+                    <span id="profile-name">Игрок</span>
+                </div>
+                <div class="stat-row">
+                    <span style="color: var(--hint-color);">Telegram ID:</span>
+                    <span id="profile-id">-</span>
+                </div>
+                <div class="stat-row">
+                    <span style="color: var(--hint-color);">Всего кликов:</span>
+                    <span id="profile-clicks">0</span>
+                </div>
+                <div class="stat-row">
+                    <span style="color: var(--hint-color);">Заработано монет:</span>
+                    <span id="profile-coins">0</span>
+                </div>
+            </div>
+        </div>
 
-        <div class="nav-tabs">
-            <button class="tab active">Игра</button>
-            <button class="tab" onclick="alert('Скоро здесь появятся бусты!')">Бусты</button>
-            <button class="tab" onclick="alert('Таблица лидеров скоро!')">Топы</button>
+        <!-- Вкладка рефералов -->
+        <div id="tab-refs" class="tab-content">
+            <div class="header">
+                <h1>👥 Рефералы</h1>
+                <p style="color: var(--hint-color);">Приглашай друзей и получай бонусы</p>
+            </div>
+            <div class="card">
+                <p style="color: var(--hint-color); margin-bottom: 15px;">Твоя реферальная ссылка:</p>
+                <input type="text" id="ref-link" readonly style="width: 100%; padding: 10px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; color: white; text-align: center; box-sizing: border-box;" value="Загрузка...">
+                <button onclick="copyRef()" style="margin-top: 15px; background: var(--button-color); color: var(--button-text-color); border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%;">📋 Скопировать ссылку</button>
+            </div>
         </div>
     </div>
 
+    <!-- Нижняя панель навигации -->
+    <div class="nav-bar">
+        <button class="nav-item active" onclick="switchTab('game', this)">⚡ Игра</button>
+        <button class="nav-item" onclick="switchTab('profile', this)">👤 Кабинет</button>
+        <button class="nav-item" onclick="switchTab('refs', this)">👥 Друзья</button>
+    </div>
+
     <script>
-        // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Получаем данные пользователя из Telegram (или тестовые, если открыто в обычном браузере)
-        const user = tg.initDataUnsafe?.user;
-        const userId = user ? user.id : 999999; 
-        const username = user ? (user.username || user.first_name) : "TestUser";
+        // Данные пользователя из Telegram
+        const user = tg.initDataUnsafe?.user || { id: 12345678, first_name: "Тестер" };
+        
+        document.getElementById('profile-name').innerText = user.first_name;
+        document.getElementById('profile-id').innerText = user.id;
+        document.getElementById('ref-link').value = `https://t.me/ТВОЙ_БОТ_USERNAME?start=${user.id}`;
 
-        // НАСТРОЙКИ SUPABASE (вставь свои ключи сюда)
+        // НАСТРОЙКА SUPABASE (Вставь свои ключи из проекта Supabase)
         const SUPABASE_URL = "https://hxgnuafvdimqhpsojjrf.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_yFYBxjPUiyiMtPApMWWiBg_6LiEeh1F";
-
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const SUPABASE_KEY = 'sb_publishable_yFYBxjPUiyiMtPApMWWiBg_6LiEeh1F';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let balance = 0;
         let clicks = 0;
 
-        const balanceEl = document.getElementById('balance');
-        const clicksEl = document.getElementById('clicks');
-        const tapButton = document.getElementById('tapButton');
-
-        // Загружаем данные пользователя из базы при запуске
         async function loadUserData() {
-            let { data, error } = await supabaseClient
+            let { data, error } = await supabase
                 .from('users')
                 .select('*')
-                .eq('user_id', userId)
+                .eq('user_id', user.id)
                 .single();
 
             if (data) {
                 balance = data.balance;
                 clicks = data.clicks;
+                updateUI();
             } else {
-                // Если пользователя еще нет в базе — создаем
-                await supabaseClient.from('users').insert([
-                    { user_id: userId, balance: 0, clicks: 0, username: username }
+                // Если пользователя нет в базе — создаем
+                await supabase.from('users').insert([
+                    { user_id: user.id, balance: 0, clicks: 0 }
                 ]);
             }
-            updateUI();
         }
 
-        // Обновление интерфейса
+        async function saveData() {
+            await supabase
+                .from('users')
+                .update({ balance: balance, clicks: clicks })
+                .eq('user_id', user.id);
+        }
+
         function updateUI() {
-            balanceEl.textContent = balance;
-            clicksEl.textContent = clicks;
+            document.getElementById('balance').innerText = balance;
+            document.getElementById('profile-clicks').innerText = clicks;
+            document.getElementById('profile-coins').innerText = balance;
         }
 
-        // Обработка клика
-        tapButton.addEventListener('click', async () => {
+        document.getElementById('tapButton').addEventListener('click', async () => {
             balance += 1;
             clicks += 1;
             updateUI();
-
-            // Вибрация в телефоне
-            if (tg.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('medium');
+            if (window.Telegram.WebApp.HapticFeedback) {
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
             }
-
-            // Сохраняем в базу данных Supabase
-            await supabaseClient
-                .from('users')
-                .update({ balance: balance, clicks: clicks })
-                .eq('user_id', userId);
+            await saveData();
         });
+
+        function switchTab(tabName, element) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('tab-' + tabName).classList.add('active');
+            element.classList.add('active');
+        }
+
+        function copyRef() {
+            const copyText = document.getElementById("ref-link");
+            copyText.select();
+            document.execCommand("copy");
+            alert("Реферальная ссылка скопирована!");
+        }
 
         loadUserData();
     </script>
